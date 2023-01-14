@@ -114,6 +114,8 @@ app.get("/messages", async (req, res) => {
   const { limit } = req.query;
   const { user } = req.headers;
 
+  if(limit < 1 || isNaN(limit)) return res.status(422).send("Please type a valid limit positive number")
+
   if(!user) return res.status(422).send("User is required")
 
   const nameInUse = await db.collection("participants").findOne({ name: user });
@@ -131,7 +133,11 @@ app.get("/messages", async (req, res) => {
   try {
     const messages = await db
       .collection("messages")
-      .find({ $or: [{ from: user }, { to: { in: ["Todos", user] } }] })
+      .find({ $or: [
+        { from: user },
+        { to: { in: ["Todos", user] } },
+        {type:"message"}
+      ] })
       .toArray();
 
     if (limit) return res.send(messages.slice(-limit).reverse());
@@ -139,7 +145,7 @@ app.get("/messages", async (req, res) => {
     res.send(messages.reverse());
   } catch (error) {
     console.log(error.message);
-    res.status(500).send("Message not found");
+    res.status(422).send("Message not found");
   }
 });
 
