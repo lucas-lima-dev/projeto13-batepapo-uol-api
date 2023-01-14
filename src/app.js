@@ -141,22 +141,24 @@ app.get("/messages", async (req, res) => {
   }
 });
 
-// app.post("/status", async (req, res) => {
-//   const { user } = req.headers;
+app.post("/status", async (req, res) => {
+  const { user } = req.headers;
 
-//   const nameInUse = await db.collection("participants").findOne({ name: user });
+  if(!user) return res.status(422).send("User is required")
 
-//   if (!nameInUse) return res.sendStatus(404);
+  const nameInUse = await db.collection("participants").findOne({ name: user });
 
-//   try {
-//     await db
-//       .collection("participants")
-//       .updateOne({ name: user }, { $set: { lastStatus: Date.now() } });
-//     return res.status(200).send()
-//   } catch (error) {
-//     console.log(error.message);
-//     res.status(500).send("LastStatus not updated");
-//   }
-// });
+  if (!nameInUse) return res.sendStatus(404);
+
+  try {
+    await db
+      .collection("participants")
+      .updateOne({ name: user }, { $set: { lastStatus: Date.now() } });
+    return res.status(200).send("OK")
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).send("LastStatus not updated");
+  }
+});
 
 app.listen(5000, () => console.log("API funfou suave"));
