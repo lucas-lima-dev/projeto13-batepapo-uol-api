@@ -42,7 +42,10 @@ app.post("/participants", async (req, res) => {
     name: joi.string().min(1).required(),
   });
 
-  const validation = participantsScheme.validate({name}, { abortEarly: false });
+  const validation = participantsScheme.validate(
+    { name },
+    { abortEarly: false }
+  );
 
   if (validation.error) return res.status(422).send(validation.error.details);
 
@@ -106,11 +109,24 @@ app.post("/messages", async (req, res) => {
   }
 });
 
-// app.get("/messages",async(req,res)=>{
-//     const {limit} = req.query
-//     const {user} = req.headers
+app.get("/messages", async (req, res) => {
+  const { limit } = req.query;
+  const { user } = req.headers;
 
-// })
+  try {
+    const messages = await db
+      .collection("messages")
+      .find({ $or: [{ from: user }, { to: { in: ["Todos", user] } }] })
+      .toArray();
+
+    if (limit) return res.send(messages.slice(-limit).reverse());
+
+    res.send(messages.reverse());
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).send("Message not found");
+  }
+});
 
 // app.post("/status", async (req, res) => {
 //   const { user } = req.headers;
@@ -123,7 +139,7 @@ app.post("/messages", async (req, res) => {
 //     await db
 //       .collection("participants")
 //       .updateOne({ name: user }, { $set: { lastStatus: Date.now() } });
-//     return res.status(200).send()  
+//     return res.status(200).send()
 //   } catch (error) {
 //     console.log(error.message);
 //     res.status(500).send("LastStatus not updated");
