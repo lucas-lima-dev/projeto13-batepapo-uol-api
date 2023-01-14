@@ -82,8 +82,7 @@ app.post("/messages", async (req, res) => {
   const messageScheme = joi.object({
     to: joi.string().min(1).required(),
     text: joi.string().min(1).required(),
-    type: joi.string().valid("message", "private_message").required(),
-    user: joi.string().min(1).required(),
+    type: joi.string().valid("message", "private_message").required()
   });
 
   const validation = messageScheme.validate(
@@ -112,6 +111,20 @@ app.post("/messages", async (req, res) => {
 app.get("/messages", async (req, res) => {
   const { limit } = req.query;
   const { user } = req.headers;
+
+  if(!user) return res.status(422).send("User is required")
+
+  const nameInUse = await db.collection("participants").findOne({ name: user });
+
+  if (!nameInUse) return res.sendStatus(422);
+
+  const limitScheme = joi.object({
+    limit: joi.number().positive()
+  })
+
+  const validadeLimit = limitScheme.validate({limit})
+
+  if(validadeLimit.error) return res.status(422).send(validadeLimit.error.details);
 
   try {
     const messages = await db
