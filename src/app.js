@@ -23,12 +23,9 @@ try {
 
 app.get("/participants", async (req, res) => {
   try {
-    const participants = await db
-      .collection("participants")
-      .findOne()
-      .toArray();
+    const participants = await db.collection("participants").find().toArray();
 
-    res.send(participants);
+    res.status(200).send(participants);
   } catch (error) {
     res.send("Deu zica no servidor");
   }
@@ -37,8 +34,12 @@ app.get("/participants", async (req, res) => {
 app.post("/participants", async (req, res) => {
   const { name } = req.body;
 
+  const nameInUse = await db.collection("participants").findOne({ name });
+
+    if (nameInUse) return res.sendStatus(409);
+
   const participantsScheme = joi.object({
-    name: joi.string().required(),
+    name: joi.string().min(1).required(),
   });
 
   const validation = participantsScheme.validate(name, { abortEarly: false });
@@ -46,13 +47,12 @@ app.post("/participants", async (req, res) => {
   if (validation.error) return res.status(422).send(validation.error.details);
 
   try {
-    const nameInUse = await db.collection("participants").findOne({ name });
 
-    if (nameInUse) return res.sendStatus(409);
+    await db
+      .collection("participants")
+      .insertOne({ name, lastStatus: Date.now() });
 
-    await db.collection("participants").insertOne({ name, lastStatus: Date.now() });
-
-    await db.collection("message").insertOne({
+    await db.collection("messages").insertOne({
       from: name,
       to: "Todos",
       text: "entra na sala...",
@@ -60,13 +60,54 @@ app.post("/participants", async (req, res) => {
       time: dayjs().format("HH:mm:ss"),
     });
 
-    res.sendStatus(201)
+    res.sendStatus(201);
   } catch (error) {
     console.log(error.message);
     res.status(500).send("Deu algo errado no servidor");
   }
 });
 
+app.post("/messages", async (req, res) => {
+  const { to, text, type } = req.body;
+  const { user } = req.headers;
 
+  if (!user) return res.status(422).send("You must type an User");
+
+  const nameInUse = await db
+      .collection("participants")
+      .findOne({ name: user });
+
+    if (!nameInUse) return res.sendStatus(422);
+
+  const messageScheme = joi.object({
+    to: joi.string().min(1).required(),
+    text: joi.string().min(1).required(),
+    type: joi.string().valid("message", "private_message").required(),
+    user: joi.string().min(1).required(),
+  });
+
+  const validation = messageScheme.validate(
+    { to, text, type },
+    { abortEarly: false }
+  );
+
+  if (validation.error) return res.status(422).send(validation.error.details);
+
+  try {
+    
+    await db.collection("messages").insertOne({
+      from: user,
+      to,
+      text,
+      type,
+      time: dayjs().format("HH:mm:ss"),
+    });
+
+    res.sendStatus(201);
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).send("Message not sent");
+  }
+});
 
 app.listen(5000, () => console.log("API funfou suave"));
