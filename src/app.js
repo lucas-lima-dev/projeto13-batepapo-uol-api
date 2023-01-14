@@ -133,12 +133,20 @@ app.get("/messages", async (req, res) => {
   try {
     const messages = await db
       .collection("messages")
-      .find({ $or: [
-        { to: user},
-        { from: user },
-        { to: "Todos" },
-        {type:"message"}
-      ] })
+      .find({ 
+        $or: [
+            { to: user,
+              type: "private_message"  
+            },
+            { from: user,
+              type: "private_message"
+            },
+            { to: "Todos",
+              type: "private_message" 
+            },
+            {type:"message"},
+            {type:"status"}
+        ] })
       .toArray();
 
     if (limit) return res.send(messages.slice(-limit).reverse());
