@@ -73,6 +73,8 @@ app.post("/messages", async (req, res) => {
   const { to, text, type } = req.body;
   const { user } = req.headers;
 
+  if(!to || !text || !type) return res.status(422).send("All fields (to, text and type) are required")
+
   if (!user) return res.status(422).send("You must type an User");
 
   const nameInUse = await db.collection("participants").findOne({ name: user });
@@ -101,10 +103,10 @@ app.post("/messages", async (req, res) => {
       time: dayjs().format("HH:mm:ss"),
     });
 
-    res.sendStatus(201);
+    res.status(201).send("Sucess: Message sent!")
   } catch (error) {
     console.log(error.message);
-    res.status(500).send("Message not sent");
+    res.status(422).send("Error: Message not sent");
   }
 });
 
@@ -160,5 +162,9 @@ app.post("/status", async (req, res) => {
     res.status(500).send("LastStatus not updated");
   }
 });
+
+app.delete("/participants",async(req,res)=>{
+
+})
 
 app.listen(5000, () => console.log("API funfou suave"));
