@@ -134,15 +134,16 @@ app.get("/messages", async (req, res) => {
     const messages = await db
       .collection("messages")
       .find({ $or: [
+        { to: user},
         { from: user },
-        { to: { in: ["Todos", user] } },
+        { to: "Todos" },
         {type:"message"}
       ] })
       .toArray();
 
     if (limit) return res.send(messages.slice(-limit).reverse());
 
-    res.send(messages.reverse());
+    return res.send(messages.reverse());
   } catch (error) {
     console.log(error.message);
     res.status(422).send("Message not found");
