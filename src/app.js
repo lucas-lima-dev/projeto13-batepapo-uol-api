@@ -141,17 +141,14 @@ app.get("/messages", async (req, res) => {
             { from: user,
               type: "private_message"
             },
-            { to: "Todos",
-              type: "private_message" 
-            },
             {type:"message"},
             {type:"status"}
         ] })
       .toArray();
 
-    if (limit) return res.send(messages.slice(-limit).reverse());
+    if (limit) return res.status(200).send(messages.slice(-limit).reverse());
 
-    return res.send(messages.reverse());
+    return res.status(200).send(messages.reverse());
   } catch (error) {
     console.log(error.message);
     res.status(422).send("Message not found");
