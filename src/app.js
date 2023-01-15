@@ -115,20 +115,20 @@ app.get("/messages", async (req, res) => {
   const { limit } = req.query ? parseInt(req.query.limit) : false;
   const { user } = req.headers;
 
-  if (!user) return res.status(422).send("User is required");
+  // if (!user) return res.status(422).send("User is required");
 
-  const nameInUse = await db.collection("participants").findOne({ name: user });
+  // const nameInUse = await db.collection("participants").findOne({ name: user });
 
-  if (!nameInUse) return res.status(422).send("User not found");
+  // if (!nameInUse) return res.status(422).send("User not found");
 
-  const limitScheme = joi.object({
-    limit: joi.number().positive(),
-  });
+  // const limitScheme = joi.object({
+  //   limit: joi.number().positive(),
+  // });
 
-  const validadeLimit = limitScheme.validate({ limit });
+  // const validadeLimit = limitScheme.validate({ limit });
 
-  if (validadeLimit.error)
-    return res.status(422).send(validadeLimit.error.details);
+  // if (validadeLimit.error)
+  //   return res.status(422).send(validadeLimit.error.details);
 
   try {
     const messages = await db
@@ -175,20 +175,15 @@ app.post("/status", async (req, res) => {
     res.status(500).send("LastStatus not updated");
   }
 });
-
 setInterval(async () => {
-  const timeNow = Date.now();
-  const limitTime = 10000;
-  const kickRoom = timeNow - limitTime;
-  const filterRule = { lastStatus: { $lt: kickRoom } };
-
   try {
-    const inactiveUsers = await db
+    const inactiveTime = Date.now() - 10000;
+    const filter = { lastStatus: { $lt: inactiveTime } };
+    const InactiveUsers = await db
       .collection("participants")
-      .find(filterRule)
+      .find(filter)
       .toArray();
-
-    inactiveUsers.map(async (user) => {
+    InactiveUsers.map(async (user) => {
       await db.collection("participants").deleteOne({ _id: ObjectId(user.id) });
       const leaveRoomMessageUpdate = {
         from: user.name,
