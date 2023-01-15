@@ -1,6 +1,6 @@
 import express, { json } from "express";
 import cors from "cors";
-import { MongoClient, ObjectId } from "mongodb";
+import { MongoClient } from "mongodb";
 import joi from "joi";
 import dayjs from "dayjs";
 import dotenv from "dotenv";
@@ -120,7 +120,7 @@ app.get("/messages", async (req, res) => {
 
   const nameInUse = await db.collection("participants").findOne({ name: user });
 
-  if (!nameInUse) return res.sendStatus(422);
+  if (!nameInUse) return res.status(422).send("User not found");
 
   const limitScheme = joi.object({
     limit: joi.number().positive()
@@ -130,37 +130,28 @@ app.get("/messages", async (req, res) => {
 
   if(validadeLimit.error) return res.status(422).send(validadeLimit.error.details);
 
-//   try {
-//     const messages = await db
-//       .collection("messages")
-//       .find({ 
-//         $or: [
-//             { to: user,
-//               type: "private_message"  
-//             },
-//             { from: user,
-//               type: "private_message"
-//             },
-//             {type:"message"},
-//             {type:"status"}
-//         ] })
-//       .toArray();
-
-try {
-    const messages = await db.collection("messages")
-      .find({
+  try {
+    const messages = await db
+      .collection("messages")
+      .find({ 
         $or: [
-          { to: user },
-          { from: user },
-          { to: "Todos" },
-          { type: "message" },
-        ],
-      })
+            { to: user,
+              type: "private_message"  
+            },
+            { from: user,
+              type: "private_message"
+            },
+            {type:"message"},
+            {type:"status"}
+        ] })
       .toArray();
 
-    if (limit) return res.status(200).send(messages.slice(-limit).reverse());
-
+    if (limit){
+     return res.status(200).send(messages.slice(0,limit).reverse());
+    }
+        
     return res.status(200).send(messages.reverse());
+
   } catch (error) {
     console.log(error.message);
     res.status(422).send("Message not found");
@@ -194,7 +185,7 @@ setInterval(async()=>{
     
     users.forEach(async (user)=>{
         if((timeNow - user.lastStatus) > kickRoomLimit  ){
-            await db.collection("participants").deleteOne({name:user.name})
+            await db.collection("participants").deleteOne({name: user.name})
 
             await db.collection("messages").insertOne({
                 from:user.name,
