@@ -130,20 +130,32 @@ app.get("/messages", async (req, res) => {
 
   if(validadeLimit.error) return res.status(422).send(validadeLimit.error.details);
 
-  try {
-    const messages = await db
-      .collection("messages")
-      .find({ 
+//   try {
+//     const messages = await db
+//       .collection("messages")
+//       .find({ 
+//         $or: [
+//             { to: user,
+//               type: "private_message"  
+//             },
+//             { from: user,
+//               type: "private_message"
+//             },
+//             {type:"message"},
+//             {type:"status"}
+//         ] })
+//       .toArray();
+
+try {
+    const messages = await db.collection("messages")
+      .find({
         $or: [
-            { to: user,
-              type: "private_message"  
-            },
-            { from: user,
-              type: "private_message"
-            },
-            {type:"message"},
-            {type:"status"}
-        ] })
+          { to: user },
+          { from: user },
+          { to: "Todos" },
+          { type: "message" },
+        ],
+      })
       .toArray();
 
     if (limit) return res.status(200).send(messages.slice(-limit).reverse());
@@ -175,8 +187,24 @@ app.post("/status", async (req, res) => {
   }
 });
 
-app.delete("/participants",async(req,res)=>{
+setInterval(async()=>{
+    const users = await db.collection("participants").find().toArray()
+    const timeNow = Date.now()
+    const kickRoomLimit = 10000
+    
+    users.forEach(async (user)=>{
+        if((timeNow - user.lastStatus) > kickRoomLimit  ){
+            await db.collection("participants").deleteOne({name:user.name})
 
-})
+            await db.collection("messages").insertOne({
+                from:user.name,
+                to:"Todos",
+                text:"sai da sala...",
+                type:"status",
+                time: dayjs().format("HH:mm:ss")
+            })
+        }
+    })
+},15000)
 
 app.listen(5000, () => console.log("API funfou suave"));
