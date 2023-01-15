@@ -1,6 +1,6 @@
 import express, { json } from "express";
 import cors from "cors";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import joi from "joi";
 import dayjs from "dayjs";
 import dotenv from "dotenv";
@@ -73,7 +73,8 @@ app.post("/messages", async (req, res) => {
   const { to, text, type } = req.body;
   const { user } = req.headers;
 
-  if(!to || !text || !type) return res.status(422).send("All fields (to, text and type) are required")
+  if (!to || !text || !type)
+    return res.status(422).send("All fields (to, text and type) are required");
 
   if (!user) return res.status(422).send("You must type an User");
 
@@ -84,7 +85,7 @@ app.post("/messages", async (req, res) => {
   const messageScheme = joi.object({
     to: joi.string().min(1).required(),
     text: joi.string().min(1).required(),
-    type: joi.string().valid("message", "private_message").required()
+    type: joi.string().valid("message", "private_message").required(),
   });
 
   const validation = messageScheme.validate(
@@ -103,7 +104,7 @@ app.post("/messages", async (req, res) => {
       time: dayjs().format("HH:mm:ss"),
     });
 
-    res.status(201).send("Sucess: Message sent!")
+    res.status(201).send("Sucess: Message sent!");
   } catch (error) {
     console.log(error.message);
     res.status(422).send("Error: Message not sent");
@@ -111,47 +112,44 @@ app.post("/messages", async (req, res) => {
 });
 
 app.get("/messages", async (req, res) => {
-  const { limit } = req.query;
+  const { limit } = req.query ? parseInt(req.query.limit) : false;
   const { user } = req.headers;
 
-  if(limit < 1 || isNaN(limit)) return res.status(422).send("Please type a valid limit positive number")
-
-  if(!user) return res.status(422).send("User is required")
+  if (!user) return res.status(422).send("User is required");
 
   const nameInUse = await db.collection("participants").findOne({ name: user });
 
   if (!nameInUse) return res.status(422).send("User not found");
 
   const limitScheme = joi.object({
-    limit: joi.number().positive()
-  })
+    limit: joi.number().positive(),
+  });
 
-  const validadeLimit = limitScheme.validate({limit})
+  const validadeLimit = limitScheme.validate({ limit });
 
-  if(validadeLimit.error) return res.status(422).send(validadeLimit.error.details);
+  if (validadeLimit.error)
+    return res.status(422).send(validadeLimit.error.details);
 
   try {
     const messages = await db
       .collection("messages")
-      .find({ 
+      .find({
         $or: [
-            { to: user,
-              type: "private_message"  
-            },
-            { from: user,
-              type: "private_message"
-            },
-            {type:"message"},
-            {type:"status"}
-        ] })
+          { to: user, type: "private_message" },
+          { from: user, type: "private_message" },
+          { type: "message" },
+          { type: "status" },
+        ],
+      })
       .toArray();
 
-    if (limit){
-     return res.status(200).send(messages.slice(0,limit).reverse());
+    if (limit < 0 || limit === 0 || isNaN(limit)) {
+      return res.sendStatus(422);
+    } else if (limit > 0) {
+      return res.send(messages.slice(-limit).reverse());
+    } else {
+      res.send(messages.reverse());
     }
-        
-    return res.status(200).send(messages.reverse());
-
   } catch (error) {
     console.log(error.message);
     res.status(422).send("Message not found");
@@ -161,7 +159,7 @@ app.get("/messages", async (req, res) => {
 app.post("/status", async (req, res) => {
   const { user } = req.headers;
 
-  if(!user) return res.status(422).send("User is required")
+  if (!user) return res.status(422).send("User is required");
 
   const nameInUse = await db.collection("participants").findOne({ name: user });
 
@@ -171,31 +169,40 @@ app.post("/status", async (req, res) => {
     await db
       .collection("participants")
       .updateOne({ name: user }, { $set: { lastStatus: Date.now() } });
-    return res.status(200).send("OK")
+    return res.status(200).send("OK");
   } catch (error) {
     console.log(error.message);
     res.status(500).send("LastStatus not updated");
   }
 });
 
-setInterval(async()=>{
-    const users = await db.collection("participants").find().toArray()
-    const timeNow = Date.now()
-    const kickRoomLimit = 10000
-    
-    users.forEach(async (user)=>{
-        if((timeNow - user.lastStatus) > kickRoomLimit  ){
-            await db.collection("participants").deleteOne({name: user.name})
+setInterval(async () => {
+  const timeNow = Date.now();
+  const limitTime = 10000;
+  const kickRoom = timeNow - limitTime;
+  const filterRule = { lastStatus: { $lt: kickRoom } };
 
-            await db.collection("messages").insertOne({
-                from:user.name,
-                to:"Todos",
-                text:"sai da sala...",
-                type:"status",
-                time: dayjs().format("HH:mm:ss")
-            })
-        }
-    })
-},15000)
+  try {
+    const inactiveUsers = await db
+      .collection("participants")
+      .find(filterRule)
+      .toArray();
+
+    inactiveUsers.map(async (user) => {
+      await db.collection("participants").deleteOne({ _id: ObjectId(user.id) });
+      const leaveRoomMessageUpdate = {
+        from: user.name,
+        to: "Todos",
+        text: "sai da sala...",
+        type: "status",
+        time: dayjs().format("HH:mm:ss"),
+      };
+      await db.collection("messages").insertOne(leaveRoomMessageUpdate);
+    });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).send("LeaveRoom Message not updated");
+  }
+}, 15000);
 
 app.listen(5000, () => console.log("API funfou suave"));
