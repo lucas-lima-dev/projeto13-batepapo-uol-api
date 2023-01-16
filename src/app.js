@@ -112,7 +112,7 @@ app.post("/messages", async (req, res) => {
 });
 
 app.get("/messages", async (req, res) => {
-  const { limit } = req.query ? parseInt(req.query.limit) : false;
+  const { limit } = req.query 
   const { user } = req.headers;
 
   // if (!user) return res.status(422).send("User is required");
@@ -131,7 +131,7 @@ app.get("/messages", async (req, res) => {
   //   return res.status(422).send(validadeLimit.error.details);
 
   try {
-    const messages = await db
+    const mensagens = await db
       .collection("messages")
       .find({
         $or: [
@@ -146,9 +146,9 @@ app.get("/messages", async (req, res) => {
     if (limit < 0 || limit === 0 || isNaN(limit)) {
       return res.sendStatus(422);
     } else if (limit > 0) {
-      return res.send(messages.slice(-limit).reverse());
+      return res.send(mensagens.slice(-limit).reverse());
     } else {
-      res.send(messages.reverse());
+      res.send(mensagens.reverse());
     }
   } catch (error) {
     console.log(error.message);
@@ -176,12 +176,13 @@ app.post("/status", async (req, res) => {
   }
 });
 setInterval(async () => {
+  let hora = dayjs().format("HH:mm:ss");
   try {
     const inactiveTime = Date.now() - 10000;
-    const filter = { lastStatus: { $lt: inactiveTime } };
+    const filterRule = { lastStatus: { $lt: inactiveTime } };
     const InactiveUsers = await db
       .collection("participants")
-      .find(filter)
+      .find(filterRule)
       .toArray();
     InactiveUsers.map(async (user) => {
       await db.collection("participants").deleteOne({ _id: ObjectId(user.id) });
@@ -190,7 +191,7 @@ setInterval(async () => {
         to: "Todos",
         text: "sai da sala...",
         type: "status",
-        time: dayjs().format("HH:mm:ss"),
+        time: hora
       };
       await db.collection("messages").insertOne(leaveRoomMessageUpdate);
     });
