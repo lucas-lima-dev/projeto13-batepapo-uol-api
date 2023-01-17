@@ -122,7 +122,7 @@ app.get("/messages", async (req, res) => {
   const { limit } = req.query;
   const { user } = req.headers;
   
-  if ( isNaN(limit) && limit || parseInt(limit) || limit == 0) return res.sendStatus(422);
+  if ( isNaN(limit) && limit || parseInt(limit) <= 0) return res.sendStatus(422);
 
   if (!user) return res.status(422).send("User is required");
 
@@ -143,9 +143,9 @@ app.get("/messages", async (req, res) => {
         ],
       })
       .toArray();
-
+      console.log(limit)
     if (limit) {
-      return res.send(mensagens.slice(-limit).reverse());
+      return res.send(mensagens.slice(-Number(limit)).reverse());
     } else {
       res.send(mensagens.reverse());
     }
@@ -155,10 +155,10 @@ app.get("/messages", async (req, res) => {
   }
 });
 
-app.put("/status", async (req, res) => {
+app.post("/status", async (req, res) => {
   const { user } = req.headers;
 
-  if (!user) return res.status(422).send("User is required");
+  if (!user) return res.status(404).send("User is required");
 
   try {
     
